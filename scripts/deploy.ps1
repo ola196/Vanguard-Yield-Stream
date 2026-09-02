@@ -1,0 +1,172 @@
+# =============================================================================
+#  Vanguard Yield Stream — Stellar Testnet Deployment Pipeline (PowerShell)
+# =============================================================================
+#
+#  Usage (from the workspace root):
+#    .\scripts\deploy.ps1
+#    .\scripts\deploy.ps1 -Identity mykey -Token CXXX...
+#
+#  Prerequisites:
+#    - Rust + cargo (https://rustup.rs)
+#    - stellar-cli  (cargo install stellar-cli)
+#    - A funded Testnet identity:
+#        stellar keys generate admin --network testnet
+#        stellar keys fund admin --network testnet
+# =============================================================================
+
+param(
+    [string]$Identity = $env:STELLAR_IDENTITY ?? "admin",
+    [string]$Network  = $env:STELLAR_NETWORK  ?? "testnet",
+    [string]$Token    = $env:STELLAR_TOKEN_ADDRESS ?? ""
+)
+
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
+$WasmPath = "target\wasm32v1-none\release\vanguard_stream.wasm"
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+function Info($msg)    { Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
+function Ok($msg)      { Write-Host "[OK]    $msg" -ForegroundColor Green }
+function Warn($msg)    { Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
+function Fail($msg)    { Write-Host "[ERROR] $msg" -ForegroundColor Red; exit 1 }
+function Step($n, $msg){ Write-Host "`n== Step $n — $msg ==" -ForegroundColor Cyan }
+
+# ── Banner ────────────────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "  Vanguard Yield Stream — Soroban Deployment Pipeline" -ForegroundColor Cyan
+Write-Host "  Network : $Network" -ForegroundColor White
+Write-Host "  Identity: $Identity" -ForegroundColor White
+Write-Host ""
+
+# ── Step 0: Prerequisites ─────────────────────────────────────────────────────
+Step "0/5" "Validating prerequisites"
+
+if (-not (Get-Command stellar -ErrorAction SilentlyContinue)) {
+    Fail "stellar-cli not found. Install with: cargo install stellar-cli"
+}
+$stellarVersion = stellar --version 2>&1 | Select-Object -First 1
+Ok "stellar-cli: $stellarVersion"
+
+if (-not (Get-Command cargo -ErrorAction SilentlyContinue)) {
+    Fail "cargo not found. Install Rust from https://rustup.rs"
+}
+Ok "cargo: $(cargo --version)"
+
+# Verify identity exists
+try {
+    $AdminAddress = stellar keys address $Identity --network $Network 2>&1
+    if ($AdminAddress -notmatch "^G[A-Z0-9]{55}$") { throw }
+} catch {
+    Fail "Identity '$Identity' not found. Run: stellar keys generate $Identity --network $Network"
+}
+Ok "Admin address: $AdminAddress"
+
+# ── Step 1: Tests ─────────────────────────────────────────────────────────────
+Step "1/5" "Running contract test suite"
+
+Info "Executing: cargo test"
+cargo test
+if ($LASTEXITCODE -ne 0) { Fail "Test suite failed. Aborting." }
+Ok "All tests passed."
+
+# ── Step 2: Build WASM ────────────────────────────────────────────────────────
+Step "2/5" "Compiling WASM binary"
+
+Info "Executing: stellar contract build"
+stellar contract build
+if ($LASTEXITCODE -ne 0) { Fail "Contract build failed." }
+
+if (-not (Test-Path $WasmPath)) {
+    Fail "WASM not found at: $WasmPath"
+}
+$WasmSize = (Get-Item $WasmPath).Length
+Ok "WASM compiled: $WasmPath ($([Math]::Round($WasmSize/1KB, 1)) KB)"
+
+# ── Step 3: Deploy ────────────────────────────────────────────────────────────
+Step "3/5" "Deploying to Stellar $Network"
+
+Info "Uploading and deploying WASM..."
+$ContractId = stellar contract deploy `
+    --wasm $WasmPath `
+    --source $Identity `
+    --network $Network 2>&1 | Select-Object -Last 1
+
+if (-not $ContractId -or $ContractId.Length -ne 56) {
+    Fail "Deployment failed or returned unexpected output: $ContractId"
+}
+Ok "Contract deployed: $ContractId"
+
+# ── Step 4: Token resolution ──────────────────────────────────────────────────
+Step "4/5" "Resolving token address"
+
+if ([string]::IsNullOrEmpty($Token)) {
+    Warn "No -Token provided. Wrapping native XLM..."
+    $Token = stellar contract asset deploy `
+        --asset native `
+        --source $Identity `
+        --network $Network 2>&1 | Select-Object -Last 1
+    Ok "Native XLM SAC deployed: $Token"
+} else {
+    Ok "Using token: $Token"
+}
+
+# ── Step 5: Initialize ────────────────────────────────────────────────────────
+Step "5/5" "Initializing contract"
+
+Info "Calling initialize(admin=$AdminAddress, token=$Token)..."
+stellar contract invoke `
+    --id $ContractId `
+    --source $Identity `
+    --network $Network `
+    -- `
+    initialize `
+    --admin $AdminAddress `
+    --token $Token
+
+if ($LASTEXITCODE -ne 0) { Fail "Initialization failed." }
+Ok "Contract initialized."
+
+# ── Write .env.local ──────────────────────────────────────────────────────────
+$EnvFile = "frontend\.env.local"
+Info "Writing contract ID to $EnvFile..."
+
+$EnvContent = @"
+# Auto-generated by scripts/deploy.ps1 — $(Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ" -AsUTC)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Soroban contract ID (deployed to $Network)
+NEXT_PUBLIC_STREAM_CONTRACT_ID=$ContractId
+
+# Stellar Network passphrase
+NEXT_PUBLIC_NETWORK_PASSPHRASE=Test SDF Network ; September 2015
+
+# Soroban RPC endpoint
+NEXT_PUBLIC_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+
+# Stellar Horizon URL
+NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org
+"@
+
+New-Item -ItemType Directory -Path "frontend" -Force | Out-Null
+Set-Content -Path $EnvFile -Value $EnvContent -Encoding UTF8
+
+Ok "Environment config written to $EnvFile"
+
+# ── Summary ───────────────────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host "  Deployment Complete!" -ForegroundColor Green
+Write-Host "══════════════════════════════════════════════════════" -ForegroundColor Green
+Write-Host ""
+Write-Host "  Contract ID : $ContractId" -ForegroundColor Cyan
+Write-Host "  Token       : $Token" -ForegroundColor Cyan
+Write-Host "  Network     : $Network" -ForegroundColor Cyan
+Write-Host "  Admin       : $AdminAddress" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Explorer:"
+Write-Host "  https://stellar.expert/explorer/testnet/contract/$ContractId" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  Next steps:"
+Write-Host "  cd frontend; npm install; npm run dev" -ForegroundColor Cyan
+Write-Host ""
