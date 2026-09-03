@@ -25,8 +25,7 @@ export interface WalletState {
 export async function isFreighterInstalled(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   try {
-    const connection = await isConnected();
-    return connection.isConnected;
+    return await isConnected();
   } catch {
     return false;
   }
@@ -48,10 +47,7 @@ export async function connectWallet(): Promise<string | null> {
     }
 
     // requestAccess triggers the Freighter permission popup
-    const access = await requestAccess();
-    if (access.error) return null;
-
-    return access.address || null;
+    return (await requestAccess()) || null;
   } catch (error) {
     console.error("Wallet connection failed:", error);
     return null;
@@ -68,8 +64,7 @@ export async function getConnectedAddress(): Promise<string | null> {
   try {
     const installed = await isFreighterInstalled();
     if (!installed) return null;
-    const access = await requestAccess();
-    return access.error ? null : access.address || null;
+    return (await requestAccess()) || null;
   } catch {
     return null;
   }
@@ -87,8 +82,7 @@ export async function signTx(
   networkPassphrase: string
 ): Promise<string | null> {
   try {
-    const result = await signTransaction(xdr, { networkPassphrase });
-    return result.error ? null : result.signedTxXdr || null;
+    return (await signTransaction(xdr, { networkPassphrase })) || null;
   } catch (error) {
     console.error("Transaction signing failed:", error);
     return null;
