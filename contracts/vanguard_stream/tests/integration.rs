@@ -33,5 +33,8 @@ fn cancelled_stream_is_settled_and_cannot_be_withdrawn() {
     assert_eq!(token_client.balance(&recipient), 50_000_000);
     assert_eq!(token_client.balance(&sender), 50_000_000);
     assert_eq!(token_client.balance(&contract_id), 0);
-    assert_eq!(client.try_withdraw(&stream_id, &1), Err(Ok(Error::StreamCancelled)));
+    assert_eq!(
+        client.try_withdraw(&stream_id, &1),
+        Err(Ok(Error::StreamCancelled))
+    );
 }

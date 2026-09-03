@@ -9,7 +9,6 @@
 import {
   isConnected,
   requestAccess,
-  getAddress,
   signTransaction,
 } from "@stellar/freighter-api";
 
@@ -26,7 +25,8 @@ export interface WalletState {
 export async function isFreighterInstalled(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   try {
-    return await isConnected();
+    const connection = await isConnected();
+    return connection.isConnected;
   } catch {
     return false;
   }
@@ -48,11 +48,10 @@ export async function connectWallet(): Promise<string | null> {
     }
 
     // requestAccess triggers the Freighter permission popup
-    await requestAccess();
+    const access = await requestAccess();
+    if (access.error) return null;
 
-    // getAddress returns the currently selected account public key
-    const publicKey = await getAddress();
-    return publicKey || null;
+    return access.address || null;
   } catch (error) {
     console.error("Wallet connection failed:", error);
     return null;
@@ -69,8 +68,8 @@ export async function getConnectedAddress(): Promise<string | null> {
   try {
     const installed = await isFreighterInstalled();
     if (!installed) return null;
-    const publicKey = await getAddress();
-    return publicKey || null;
+    const access = await requestAccess();
+    return access.error ? null : access.address || null;
   } catch {
     return null;
   }
@@ -88,8 +87,8 @@ export async function signTx(
   networkPassphrase: string
 ): Promise<string | null> {
   try {
-    const signedXdr = await signTransaction(xdr, { networkPassphrase });
-    return signedXdr || null;
+    const result = await signTransaction(xdr, { networkPassphrase });
+    return result.error ? null : result.signedTxXdr || null;
   } catch (error) {
     console.error("Transaction signing failed:", error);
     return null;

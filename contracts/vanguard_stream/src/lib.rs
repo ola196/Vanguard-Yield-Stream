@@ -409,20 +409,12 @@ impl VanguardStreamContract {
 
         // Pay recipient their earned portion
         if accrued > 0 {
-            token_client.transfer(
-                &env.current_contract_address(),
-                &stream.recipient,
-                &accrued,
-            );
+            token_client.transfer(&env.current_contract_address(), &stream.recipient, &accrued);
         }
 
         // Refund sender their unearned deposit
         if unaccrued > 0 {
-            token_client.transfer(
-                &env.current_contract_address(),
-                &stream.sender,
-                &unaccrued,
-            );
+            token_client.transfer(&env.current_contract_address(), &stream.sender, &unaccrued);
         }
 
         Ok(())

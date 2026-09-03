@@ -16,6 +16,7 @@ import {
   BASE_FEE,
   Keypair,
   Address,
+  Account,
 } from "@stellar/stellar-sdk";
 import { signTx } from "./freighter";
 
@@ -225,13 +226,11 @@ export async function getBalanceOf(streamId: number): Promise<bigint | null> {
 
     // Use a dummy keypair for read-only simulation
     const dummyKeypair = Keypair.random();
-    const account = await server.getAccount(dummyKeypair.publicKey()).catch(() => ({
-      accountId: () => dummyKeypair.publicKey(),
-      sequenceNumber: () => "0",
-      incrementSequenceNumber: () => {},
-    }));
+    const account = await server
+      .getAccount(dummyKeypair.publicKey())
+      .catch(() => new Account(dummyKeypair.publicKey(), "0"));
 
-    const tx = new TransactionBuilder(account as Parameters<typeof TransactionBuilder>[0], {
+    const tx = new TransactionBuilder(account, {
       fee: BASE_FEE,
       networkPassphrase: NETWORK_PASSPHRASE,
     })
@@ -260,13 +259,11 @@ export async function getStream(streamId: number): Promise<StreamData | null> {
     const contract = new Contract(CONTRACT_ID);
 
     const dummyKeypair = Keypair.random();
-    const account = await server.getAccount(dummyKeypair.publicKey()).catch(() => ({
-      accountId: () => dummyKeypair.publicKey(),
-      sequenceNumber: () => "0",
-      incrementSequenceNumber: () => {},
-    }));
+    const account = await server
+      .getAccount(dummyKeypair.publicKey())
+      .catch(() => new Account(dummyKeypair.publicKey(), "0"));
 
-    const tx = new TransactionBuilder(account as Parameters<typeof TransactionBuilder>[0], {
+    const tx = new TransactionBuilder(account, {
       fee: BASE_FEE,
       networkPassphrase: NETWORK_PASSPHRASE,
     })

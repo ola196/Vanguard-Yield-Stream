@@ -223,8 +223,7 @@ fn test_cancel_stream_midpoint() {
     env.ledger().with_mut(|li| li.timestamp = 500);
 
     // 100_000_000 over 1_000s = 100_000 stroops/sec
-    let stream_id =
-        client.create_stream(&sender, &recipient, &100_000_000, &1_000, &2_000);
+    let stream_id = client.create_stream(&sender, &recipient, &100_000_000, &1_000, &2_000);
 
     let sender_balance_after_create = token_client.balance(&sender);
 
@@ -271,8 +270,7 @@ fn test_cancel_stream_before_start() {
 
     env.ledger().with_mut(|li| li.timestamp = 100);
 
-    let stream_id =
-        client.create_stream(&sender, &recipient, &100_000_000, &1_000, &2_000);
+    let stream_id = client.create_stream(&sender, &recipient, &100_000_000, &1_000, &2_000);
 
     let sender_balance_before = token_client.balance(&sender);
 
@@ -312,8 +310,7 @@ fn test_cancel_stream_after_end() {
     client.initialize(&admin, &token_address);
 
     env.ledger().with_mut(|li| li.timestamp = 100);
-    let stream_id =
-        client.create_stream(&sender, &recipient, &100_000_000, &1_000, &2_000);
+    let stream_id = client.create_stream(&sender, &recipient, &100_000_000, &1_000, &2_000);
 
     // Cancel after stop_time
     env.ledger().with_mut(|li| li.timestamp = 3_000);
@@ -766,7 +763,10 @@ fn test_rate_truncation_refunded_on_cancel() {
 
     assert_eq!(token_client.balance(&recipient), 1_000_000);
     // Sender gets refunded the 1-stroop truncation remainder
-    assert_eq!(token_client.balance(&sender), sender_balance_after_create + 1);
+    assert_eq!(
+        token_client.balance(&sender),
+        sender_balance_after_create + 1
+    );
 }
 
 /// Single-second stream — verify balance accrual at exactly 1-second intervals.
@@ -796,13 +796,21 @@ fn test_single_second_precision() {
     let stream_id = client.create_stream(&sender, &recipient, &100, &1_000, &1_010);
 
     env.ledger().with_mut(|li| li.timestamp = 1_001);
-    assert_eq!(client.balance_of(&stream_id), 10, "1 second of accrual = 10 stroops");
+    assert_eq!(
+        client.balance_of(&stream_id),
+        10,
+        "1 second of accrual = 10 stroops"
+    );
 
     env.ledger().with_mut(|li| li.timestamp = 1_005);
     assert_eq!(client.balance_of(&stream_id), 50, "5 seconds = 50 stroops");
 
     env.ledger().with_mut(|li| li.timestamp = 1_010);
-    assert_eq!(client.balance_of(&stream_id), 100, "Full duration = full deposit");
+    assert_eq!(
+        client.balance_of(&stream_id),
+        100,
+        "Full duration = full deposit"
+    );
 
     client.withdraw(&stream_id, &100);
     assert_eq!(token_client.balance(&recipient), 100);
