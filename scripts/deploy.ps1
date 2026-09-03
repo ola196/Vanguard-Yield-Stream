@@ -15,9 +15,9 @@
 # =============================================================================
 
 param(
-    [string]$Identity = $env:STELLAR_IDENTITY ?? "admin",
-    [string]$Network  = $env:STELLAR_NETWORK  ?? "testnet",
-    [string]$Token    = $env:STELLAR_TOKEN_ADDRESS ?? ""
+    [string]$Identity = $(if ($env:STELLAR_IDENTITY) { $env:STELLAR_IDENTITY } else { "admin" }),
+    [string]$Network  = $(if ($env:STELLAR_NETWORK) { $env:STELLAR_NETWORK } else { "testnet" }),
+    [string]$Token    = $(if ($env:STELLAR_TOKEN_ADDRESS) { $env:STELLAR_TOKEN_ADDRESS } else { "" })
 )
 
 Set-StrictMode -Version Latest

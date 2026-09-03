@@ -152,7 +152,7 @@ export default function StreamDashboard() {
                   {[
                     { label: "Network", value: "Stellar Testnet" },
                     { label: "Contract", value: process.env.NEXT_PUBLIC_STREAM_CONTRACT_ID ? "Deployed" : "Not deployed" },
-                    { label: "SDK", value: "Soroban 21.0.0" },
+                    { label: "SDK", value: "Soroban 22.0.0" },
                     { label: "Token standard", value: "Stellar SAC" },
                   ].map((item) => (
                     <div key={item.label}>

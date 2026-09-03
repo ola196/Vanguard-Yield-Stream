@@ -1,14 +1,27 @@
 # Rust build artifacts
 /target/
 **/*.rs.bk
-Cargo.lock
+**/target/
 
 # Node / Next.js
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+**/node_modules/
+**/.next/
+**/out/
 frontend/.env.local
 frontend/.env*.local
+.env
+.env.*
+!.env.example
+
+# Private credentials and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
 
 # OS files
 .DS_Store

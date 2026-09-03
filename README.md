@@ -37,11 +37,13 @@ vanguard yield stream/
 ├── Cargo.toml                          # Workspace manifest
 ├── contracts/
 │   └── vanguard_stream/
-│       ├── Cargo.toml                  # soroban-sdk 21.0.0 dependency
+│       ├── Cargo.toml                  # soroban-sdk 22.0.0 dependency
 │       └── src/
 │           ├── lib.rs                  # Contract core logic
 │           ├── types.rs                # DataKey enum + Stream struct
-│           └── test.rs                 # 19-test suite
+│           └── test.rs                 # Unit test suite
+│       └── tests/
+│           └── integration.rs          # Cross-crate integration tests
 ├── scripts/
 │   ├── deploy.sh                       # Bash deployment (Linux/macOS/WSL)
 │   └── deploy.ps1                      # PowerShell deployment (Windows)
@@ -148,7 +150,7 @@ The constant `THIRTY_DAYS_IN_LEDGERS = 518_400` is based on a ~5-second average 
 
 ## Test Suite
 
-15 tests covering every execution path:
+19 unit tests plus external integration coverage covering every execution path:
 
 | Test | What It Verifies |
 |---|---|
@@ -301,6 +303,14 @@ NEXT_PUBLIC_HORIZON_URL=https://horizon-testnet.stellar.org
 
 ---
 
+## Production Readiness
+
+This repository is a Stellar Testnet project intended for evaluation and
+reproducible local testing. Mainnet use requires an independent Soroban
+security audit, operational key management, monitoring, and a staged
+small-value rollout. Unit tests cannot establish production safety on their
+own.
+
 ## Security Checklist
 
 Before moving to Mainnet, verify the following:
@@ -309,6 +319,7 @@ Before moving to Mainnet, verify the following:
 - [ ] Add a time-lock delay to admin operations (e.g., pause requires a 24h notice)
 - [ ] Implement multi-sig admin using Stellar's native threshold system
 - [ ] Consider rate-limiting stream creation per address to mitigate spam
+- [x] Cancelled streams are terminal and cannot be withdrawn twice
 - [ ] Audit TTL extension logic — ensure no stream can be created with a duration exceeding the TTL window
 - [ ] Engage a third-party Soroban security auditor before handling significant value
 - [ ] Verify the SAC token address is the expected issuer before initializing

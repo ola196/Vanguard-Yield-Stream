@@ -305,6 +305,10 @@ impl VanguardStreamContract {
             .get(&DataKey::Stream(stream_id))
             .ok_or(Error::StreamNotFound)?;
 
+        if stream.is_cancelled {
+            return Err(Error::StreamCancelled);
+        }
+
         // Only the designated recipient may withdraw
         stream.recipient.require_auth();
 
@@ -383,8 +387,14 @@ impl VanguardStreamContract {
             .checked_sub(accrued)
             .ok_or(Error::MathOverflow)?;
 
-        // Mark cancelled before external calls (re-entrancy hygiene)
+        // Mark cancelled and settle the stream before external calls.
+        // Setting withdrawn_amount to the full deposit makes the terminal
+        // state unambiguous to balance_of and prevents later claims.
         stream.is_cancelled = true;
+        stream.withdrawn_amount = stream
+            .deposit_amount
+            .checked_sub(unaccrued)
+            .ok_or(Error::MathOverflow)?;
         env.storage()
             .persistent()
             .set(&DataKey::Stream(stream_id), &stream);
