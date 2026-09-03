@@ -22,63 +22,6 @@ use soroban_sdk::{
 // TEST HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Bootstraps a fresh environment with a mock SAC token and an initialized
-/// VanguardStreamContract. Returns (env, client, token_client, sac_client,
-/// admin, sender, recipient, contract_id).
-#[allow(clippy::type_complexity)]
-fn setup() -> (
-    Env,
-    VanguardStreamContractClient<'static>,
-    token::Client<'static>,
-    token::StellarAssetClient<'static>,
-    Address,
-    Address,
-    Address,
-    Address,
-) {
-    let env = Env::default();
-    env.mock_all_auths();
-
-    let admin = Address::generate(&env);
-    let sender = Address::generate(&env);
-    let recipient = Address::generate(&env);
-
-    // Deploy a Stellar Asset Contract (SAC) mock token
-    let token_admin = Address::generate(&env);
-    let token_contract = env.register_stellar_asset_contract_v2(token_admin.clone());
-    let token_address = token_contract.address();
-
-    let token_client = token::Client::new(&env, &token_address);
-    let sac_client = token::StellarAssetClient::new(&env, &token_address);
-
-    // Mint a generous supply to the sender for testing
-    sac_client.mint(&sender, &1_000_000_000_000i128);
-
-    // Register Vanguard Stream contract
-    let contract_id = env.register(VanguardStreamContract, ());
-    let client = VanguardStreamContractClient::new(&env, &contract_id);
-
-    // Initialize with admin and token
-    client.initialize(&admin, &token_address);
-
-    // Leak env lifetime to satisfy borrow checker in return
-    let env: Env = unsafe { std::mem::transmute(env) };
-    let client = VanguardStreamContractClient::new(&env, &contract_id);
-    let token_client = token::Client::new(&env, &token_address);
-    let sac_client = token::StellarAssetClient::new(&env, &token_address);
-
-    (
-        env,
-        client,
-        token_client,
-        sac_client,
-        admin,
-        sender,
-        recipient,
-        contract_id,
-    )
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // LIFECYCLE TESTS
 // ─────────────────────────────────────────────────────────────────────────────
