@@ -26,7 +26,7 @@ fn cancelled_stream_is_settled_and_cannot_be_withdrawn() {
     env.ledger().with_mut(|ledger| ledger.timestamp = 100);
     let stream_id = client.create_stream(&sender, &recipient, &100_000_000, &200, &1_200);
 
-    env.ledger().with_mut(|ledger| ledger.timestamp = 600);
+    env.ledger().with_mut(|ledger| ledger.timestamp = 700);
     client.cancel_stream(&stream_id);
 
     assert_eq!(client.balance_of(&stream_id), 0);
